@@ -44,7 +44,12 @@ export function linspace(start: number, stop: number, n: number, options: any = 
         return zeros(n).map(_ => start)
     }
     let step = delta / div
-    let y = arange(0, n, 1).map(v => start + v * step)
+    let y
+    if (div > 0) {
+        y = arange(0, n, 1).map(v => start + v * step)
+    } else {
+        y = arange(0, n, 1).map(v => start + v * delta)
+    }
     return y
 }
 
