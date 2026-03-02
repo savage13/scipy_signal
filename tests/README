@@ -1,0 +1,24 @@
+
+test suite for scipy.js
+---------------------
+
+Tests (javascript files) are automatically generated for each
+function via python scripts.
+
+Most tests pass with within a tolerance of 1e-15, some are within a bit more
+
+Run tests
+---------
+% npm run dev
+
+Regenerate tests
+----------------
+% python tests/make_tests.py
+
+Add options to tests
+--------------------
+Edit specific python script to add new values and regenerate tests
+
+
+
+
