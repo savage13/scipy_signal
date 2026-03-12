@@ -594,6 +594,7 @@ function butter_bandrej_filtfilt(data, cutoffs, fs, order = 2) {
 }
 export {
   Complex2 as Complex,
+  arange,
   bilinear_zpk,
   buttap,
   butter,

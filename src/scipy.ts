@@ -3,7 +3,7 @@ import { arange, zeros, asArray, sum, linspace } from './numpy.js'
 import { Complex, zprod, poly, zpolyval_from_roots } from './complex.js'
 
 export { Complex, zpolyval_from_roots, polymul } from './complex.js'
-export { zeros, ones, linspace } from './numpy.js'
+export { zeros, ones, linspace, arange } from './numpy.js'
 
 const band_dict: { [key: string]: string } = {
     'band': 'bandpass',
