@@ -47,7 +47,7 @@ function __deepEqualTolerance(a, b, tol) {
         if(key_a.length != key_b.length) {
             throw new Error("objects with inconsistent key lengths")
         }
-        __deepEqualTolerance(key_a, key_b,tol)
+        __deepEqualTolerance(key_a, key_b, tol)
         for(const key of key_a) {
             __deepEqualTolerance(a[key], b[key], tol)
         }

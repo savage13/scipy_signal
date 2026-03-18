@@ -12,9 +12,10 @@ def format(val, indent=0):
     elif type(val) is np.complex128:
         items.append( f"new Complex({val.real}, {val.imag})" )
     elif type(val) is list or type(val) is np.ndarray:
-        items.append( "[")
-        items.extend([ sp + format(v)[0] + "," for v in val ])
-        items.append("]")
+        if type(val[0]) is np.complex128:
+            items.append( "[" + ", ".join([f"new Complex({z.real}, {z.imag})" for z in val] ) + "]")
+        else:
+            items.append( val.tolist() )
     else:
         raise ValueError("unknown type", type(val))
     return items

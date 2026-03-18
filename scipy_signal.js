@@ -24,6 +24,17 @@ function ones(n) {
   }
   return v;
 }
+function argmin(v) {
+  if (v.length == 0)
+    throw new Error("emtpy array into argmin");
+  let k = 0;
+  for (let i = 1; i < v.length; i++) {
+    if (v[i] < v[k]) {
+      k = i;
+    }
+  }
+  return k;
+}
 function linspace(start, stop, n, options = {}) {
   let default_options = {
     endpoint: true
@@ -97,22 +108,64 @@ var Complex2 = class _Complex {
     let dy = Math.abs(this.im - z.im);
     return dx < 1e-13 && dy < 1e-13;
   }
+  // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) csqrt()
   sqrt() {
     let x = this.re;
     let y = this.im;
-    let r = Math.sqrt(x * x + y * y);
-    let re = Math.sqrt(0.5 * (r + x));
-    let im = Math.sqrt(0.5 * (r - x)) * sign(y);
+    let re = 0;
+    let im = 0;
+    if (false) {
+      let r = Math.sqrt(x * x + y * y);
+      re = Math.sqrt(0.5 * (r + x));
+      im = Math.sqrt(0.5 * (r - x)) * sign(y);
+    } else {
+      if (x == 0 && y == 0) {
+        re = 0;
+        im = y;
+      } else if (x >= 0) {
+        let t = Math.sqrt((x + hypot(x, y)) * 0.5);
+        re = t;
+        im = y / (2 * t);
+      } else {
+        let t = Math.sqrt((-x + hypot(x, y)) * 0.5);
+        re = Math.abs(y) / (2 * t);
+        im = t * sign(y);
+      }
+    }
     return new _Complex(re, im);
   }
+  // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) cdiv()
   div(z) {
-    let x = z.re;
-    let y = z.im;
-    let u = this.re;
-    let v = this.im;
-    let r = x * x + y * y;
-    let re = (u * x + v * y) / r;
-    let im = (v * x - u * y) / r;
+    let ar = this.re;
+    let ai = this.im;
+    let br = z.re;
+    let bi = z.im;
+    let re = 0;
+    let im = 0;
+    if (true) {
+      const abs_br = Math.abs(br);
+      const abs_bi = Math.abs(bi);
+      if (abs_br >= abs_bi) {
+        if (abs_br == 0 && abs_bi == 0) {
+          re = ar / abs_br;
+          im = ai / abs_bi;
+        } else {
+          const rat = bi / br;
+          const scl = 1 / (br + bi * rat);
+          re = (ar + ai * rat) * scl;
+          im = (ai - ar * rat) * scl;
+        }
+      } else {
+        const rat = br / bi;
+        const scl = 1 / (bi + br * rat);
+        re = (ar * rat + ai) * scl;
+        im = (ai * rat - ar) * scl;
+      }
+    } else {
+      let r = br * br + bi * bi;
+      re = (ar * br + ai * bi) / r;
+      im = (ai * br - ar * bi) / r;
+    }
     return new _Complex(re, im);
   }
   add(z) {
@@ -134,6 +187,12 @@ var Complex2 = class _Complex {
   }
   abs() {
     return Math.sqrt(this.re * this.re + this.im * this.im);
+  }
+  conj() {
+    return new _Complex(this.re, -this.im);
+  }
+  is_real() {
+    return this.im == 0;
   }
 };
 function isNegativeZero(v) {
@@ -175,6 +234,9 @@ function polymul(a, b) {
   let zero = new Complex2(0, 0);
   let n = a.length + b.length - 1;
   let res = [];
+  if (b.every((z) => z.re == 0 && z.im == 0)) {
+    return a.map((z) => zero.copy());
+  }
   for (let i = 0; i < n; i++) {
     res.push(zero.copy());
   }
@@ -183,7 +245,7 @@ function polymul(a, b) {
       res[i + j] = res[i + j].add(a[i].mul(b[j]));
     }
   }
-  return trimseq(res);
+  return res;
 }
 function poly(roots) {
   const one = new Complex2(1, 0);
@@ -192,6 +254,82 @@ function poly(roots) {
     p = polymul(p, [one.copy(), root.neg()]);
   }
   return p;
+}
+function asComplex(v) {
+  if (v instanceof Complex2) {
+    return v;
+  }
+  if (parseInt(v, 10) == v) {
+    return new Complex2(v, 0);
+  }
+  if (parseFloat(v) == v) {
+    return new Complex2(v, 0);
+  }
+  throw new Error(`Expected number or Complex number got ${v}`);
+}
+function cplxreal(z, tol = -1) {
+  if (!Array.isArray(z)) {
+    z = [z];
+  }
+  if (z.length == 0) {
+    return [z, z];
+  }
+  if (tol < 0) {
+    const eps = 1e-16;
+    tol = 100 * eps;
+  }
+  z = z.map((v) => asComplex(v));
+  z = z.sort((a, b) => a.re - b.re || Math.abs(a.im) - Math.abs(b.im));
+  let zr = [];
+  let zp = [];
+  let zn = [];
+  for (let i = 0; i < z.length; i++) {
+    if (Math.abs(z[i].im) <= tol * z[i].abs()) {
+      zr.push(z[i].re);
+    } else {
+      if (z[i].im > 0) {
+        zp.push(z[i]);
+      } else {
+        zn.push(z[i]);
+      }
+    }
+  }
+  if (zr.length == z.length) {
+    return [[], zr];
+  }
+  if (zp.length != zn.length) {
+    throw new Error("Array contains complex value with no matching conjugate");
+  }
+  let chunks = [[0]];
+  let k = 0;
+  for (let i = 1; i < z.length; i++) {
+    if (Math.abs(z[i - 1].re - z[i].re) > tol * z[i - 1].abs()) {
+      k += 1;
+      chunks.push([]);
+    }
+    chunks[k].push(i);
+  }
+  for (const c of chunks) {
+    let [k0, k1] = [c[0], c[c.length - 1]];
+    z.slice(k0, k1 + 1).sort((a, b) => Math.abs(a.im) - Math.abs(b.im));
+  }
+  let two = new Complex2(2, 0);
+  let zc = zp.map((_, i) => zp[i].add(zn[i].conj()).div(two));
+  return [zc, zr];
+}
+function hypot(a, b) {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  if (a < b) {
+    let tmp = a;
+    a = b;
+    b = tmp;
+  }
+  if (a == 0) {
+    return 0;
+  }
+  let ba = b / a;
+  return a * Math.sqrt(1 + ba * ba);
 }
 
 // src/scipy.ts
@@ -345,6 +483,165 @@ function zpk2tf(z, p, k) {
   let a = poly(p).map((v) => v.re);
   let b = poly(z).map((v) => v.re * k);
   return { b, a };
+}
+function zpk2sos(z, p, k) {
+  let valid_pairings = ["nearest", "keep_odd", "minimal"];
+  let analog = false;
+  let pairing = "none";
+  z = asArray(z);
+  p = asArray(p);
+  if (pairing == "none") {
+    pairing = analog ? "minimal" : "nearest";
+  }
+  if (!valid_pairings.includes(pairing)) {
+    throw new Error(`fparing must be one of the ${valid_pairings}, not ${pairing}`);
+  }
+  if (analog && pairing != "minimal") {
+    throw new Error(`for analog zpk2sos conversion, pairing must be minimal`);
+  }
+  if (z.length == 0 && p.length == 0) {
+    if (!analog) {
+      return [[k, 0, 0, 1, 0, 0]];
+    } else {
+      return [[0, 0, k, 0, 0, 1]];
+    }
+  }
+  let n_sections = 1;
+  if (pairing != "minimal") {
+    for (let i = p.length; i < z.length; i++) {
+      p.push(new Complex2(0, 0));
+    }
+    for (let i = z.length; i < p.length; i++) {
+      z.push(new Complex2(0, 0));
+    }
+    n_sections = Math.floor((Math.max(p.length, z.length) + 1) / 2);
+    if (p.length % 2 == 1 && pairing == "nearest") {
+      p.push(new Complex2(0, 0));
+      z.push(new Complex2(0, 0));
+    }
+    if (p.length != z.length) {
+      throw new Error("number of poles != number of zeros (internal error)");
+    }
+  } else {
+    if (p.length < z.length) {
+      throw new Error("for analog zpk2sos conversion, must have p.length >= z.length");
+    }
+    n_sections = Math.floor((p.length + 1) / 2);
+  }
+  z = cplxreal(z).flat().map((v) => asComplex(v));
+  p = cplxreal(p).flat().map((v) => asComplex(v));
+  let idx_worst = null;
+  if (!analog) {
+    idx_worst = (v) => {
+      return argmin(v.map((vi) => Math.abs(1 - vi.abs())));
+    };
+  } else {
+    idx_worst = (v) => {
+      return argmin(v.map((vi) => Math.abs(vi.re)));
+    };
+  }
+  let sos = Array(n_sections).fill(0).map((_) => zeros(6));
+  let zero = new Complex2(0, 0);
+  for (let si = n_sections - 1; si >= 0; si--) {
+    let p1_idx = idx_worst(p);
+    let p1 = p.splice(p1_idx, 1)[0];
+    if (p1.is_real() && p.every((v) => !v.is_real())) {
+      if (pairing == "minimal") {
+        let z1_idx = nearest_real_complex_idx(z, p1, "real");
+        let z1 = z.splice(z1_idx, 1)[0];
+        sos[si] = single_zpksos([z1, zero], [p1, zero], 1);
+      } else if (z.length > 0) {
+        let z1_idx = nearest_real_complex_idx(z, p1, "real");
+        let z1 = z.splice(z1_idx, 1)[0];
+        sos[si] = single_zpksos([z1], [p1], 1);
+      } else {
+        sos[si] = single_zpksos([], [p1], 1);
+      }
+    } else if (p.length + 1 == z.length && p1.im != 0 && sum(p.map((v) => v.re)) == 1 && sum(z.map((v) => v.re)) == 1) {
+      let z1_idx = nearest_real_complex_idx(z, p1, "complex");
+      let z1 = z.splice(z1_idx, 1)[0];
+      sos[si] = single_zpksos([z1, z1.conj()], [p1, p1.conj()], 1);
+    } else {
+      let p2 = new Complex2(0, 0);
+      if (p1.is_real()) {
+        let prealidx = [];
+        for (let i = 0; i < p.length; i++) {
+          if (p[i].is_real()) {
+            prealidx.push(i);
+          }
+        }
+        let pnz = prealidx.map((i) => p[i]);
+        let p_idx = idx_worst(pnz);
+        let p2_idx = prealidx[p_idx];
+        p2 = p.splice(p2_idx, 1)[0];
+      } else {
+        p2 = p1.conj();
+      }
+      if (z.length > 0) {
+        let z1_idx = nearest_real_complex_idx(z, p1, "any");
+        let z1 = z.splice(z1_idx, 1)[0];
+        if (z1.im != 0) {
+          sos[si] = single_zpksos([z1, z1.conj()], [p1, p2], 1);
+        } else {
+          if (z.length > 0) {
+            let z2_idx = nearest_real_complex_idx(z, p1, "real");
+            let z2 = z.splice(z2_idx, 1)[0];
+            if (z2.im != 0) {
+              throw new Error(`Expected current zero to be real, got ${z2.re} ${z2.im}`);
+            }
+            sos[si] = single_zpksos([z1, z2], [p1, p2], 1);
+          } else {
+            sos[si] = single_zpksos([z1], [p1, p2], 1);
+          }
+        }
+      } else {
+        sos[si] = single_zpksos([], [p1, p2], 1);
+      }
+    }
+  }
+  if (z.length != 0 || p.length != 0) {
+    throw new Error("Remaining zeros and poles exists, internal error");
+  }
+  for (let i = 0; i < 3; i++) {
+    sos[0][i] *= k;
+  }
+  return sos;
+}
+function single_zpksos(z, p, k) {
+  let sos = zeros(6);
+  let { b, a } = zpk2tf(z, p, k);
+  let nb = b.length;
+  for (let i = 0; i < b.length; i++) {
+    sos[3 - nb + i] = b[i];
+  }
+  let na = b.length;
+  for (let i = 0; i < a.length; i++) {
+    sos[6 - na + i] = a[i];
+  }
+  return sos;
+}
+function nearest_real_complex_idx(fro, to, which) {
+  if (!["real", "complex", "any"].includes(which)) {
+    throw new Error("which in nearest_real_complex_idx must be real, complex or any");
+  }
+  let decor = (v, i) => [v, i];
+  let undecor = (a) => a[1];
+  let argsort = (arr) => arr.map(decor).sort().map(undecor);
+  let order = argsort(fro.map((v) => v.sub(to).abs()));
+  if (which == "any") {
+    return order[0];
+  }
+  let tmp = order.map((i) => fro[i]);
+  let mask = tmp.map((v) => v.im == 0);
+  if (which == "complex") {
+    mask = mask.map((v) => !v);
+  }
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i]) {
+      return order[i];
+    }
+  }
+  throw new Error("cannot find nearest value");
 }
 function lfilter_zi(b, a) {
   b = [...asArray(b)];
@@ -599,6 +896,7 @@ export {
   buttap,
   butter,
   butter_bandrej_filtfilt,
+  cplxreal,
   filtfilt,
   freqz_zpk,
   iirfilter,
@@ -610,8 +908,10 @@ export {
   lp2hp_zpk,
   lp2lp_zpk,
   ones,
+  poly,
   polymul,
   zeros,
+  zpk2sos,
   zpk2tf,
   zpolyval_from_roots
 };

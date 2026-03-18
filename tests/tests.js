@@ -12,3 +12,6 @@ import './linspace.js'
 import './polymul.js'
 import './polyvalfromroots.js'
 import './complex.js'
+import './cplxreal.js'
+
+import './zpk2sos.js'

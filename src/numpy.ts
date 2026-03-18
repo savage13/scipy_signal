@@ -28,6 +28,21 @@ export function ones(n: number): number[] {
     return v
 }
 
+
+export function argmin(v: number[]): number {
+    if (v.length == 0)
+        throw new Error("emtpy array into argmin")
+    let k = 0;
+    //console.log('argmin', v)
+    for (let i = 1; i < v.length; i++) {
+        if (v[i] < v[k]) {
+            k = i
+        }
+    }
+    return k
+
+}
+
 export function linspace(start: number, stop: number, n: number, options: any = {}): number[] {
     let default_options = {
         endpoint: true,

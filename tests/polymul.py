@@ -1,6 +1,6 @@
 
 import numpy as np
-from numpy.polynomial import polynomial
+#from numpy.polynomial import polynomial
 from scipy import signal
 
 from gentests import *
@@ -28,7 +28,7 @@ pars = [
 
 tests = []
 for a, b in pars:
-    y = polynomial.polymul(a, b)
+    y = np.polymul(a, b)
     expect = [ y.astype(np.complex128) ]
     ac = "[" + ", ".join([ f"new Complex({v.real}, {v.imag})" for v in a]) + "]"
     bc = "[" + ", ".join([ f"new Complex({v.real}, {v.imag})" for v in b]) + "]"

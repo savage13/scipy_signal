@@ -35,22 +35,68 @@ export class Complex {
         let dy = Math.abs(this.im - z.im)
         return dx < 1e-13 && dy < 1e-13
     }
+    // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) csqrt()
     sqrt(): Complex {
         let x = this.re
         let y = this.im
-        let r = Math.sqrt(x * x + y * y)
-        let re = Math.sqrt(0.5 * (r + x))
-        let im = Math.sqrt(0.5 * (r - x)) * sign(y)
+        let re = 0
+        let im = 0
+        //console.log(x, y)
+        if (false) {
+            let r = Math.sqrt(x * x + y * y)
+            re = Math.sqrt(0.5 * (r + x))
+            im = Math.sqrt(0.5 * (r - x)) * sign(y)
+        } else {
+            if (x == 0 && y == 0) {
+                re = 0
+                im = y
+            } else if (x >= 0) {
+                let t = Math.sqrt((x + hypot(x, y)) * 0.5)
+                re = t
+                im = y / (2 * t)
+            } else {
+                let t = Math.sqrt((-x + hypot(x, y)) * 0.5)
+                re = Math.abs(y) / (2 * t)
+                im = t * sign(y)
+            }
+        }
+        //console.log("    => ", re, im)
         return new Complex(re, im)
     }
+    // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) cdiv()
     div(z: Complex): Complex {
-        let x = z.re
-        let y = z.im
-        let u = this.re
-        let v = this.im
-        let r = x * x + y * y
-        let re = (u * x + v * y) / r
-        let im = (v * x - u * y) / r
+        let ar = this.re
+        let ai = this.im
+        let br = z.re
+        let bi = z.im
+        //console.log(ar, ai, br, bi)
+        let re = 0
+        let im = 0
+        if (true) {
+            const abs_br = Math.abs(br)
+            const abs_bi = Math.abs(bi)
+            if (abs_br >= abs_bi) {
+                if (abs_br == 0.0 && abs_bi == 0.0) {
+                    re = ar / abs_br
+                    im = ai / abs_bi
+                } else {
+                    const rat = bi / br
+                    const scl = 1.0 / (br + bi * rat)
+                    re = (ar + ai * rat) * scl
+                    im = (ai - ar * rat) * scl
+                }
+            } else {
+                const rat = br / bi
+                const scl = 1.0 / (bi + br * rat)
+                re = (ar * rat + ai) * scl
+                im = (ai * rat - ar) * scl
+            }
+        } else {
+            let r = br * br + bi * bi
+            re = (ar * br + ai * bi) / r
+            im = (ai * br - ar * bi) / r
+        }
+        //console.log('     =>', re, im)
         return new Complex(re, im)
     }
     add(z: Complex): Complex {
@@ -72,6 +118,12 @@ export class Complex {
     }
     abs(): number {
         return Math.sqrt(this.re * this.re + this.im * this.im)
+    }
+    conj(): Complex {
+        return new Complex(this.re, -this.im)
+    }
+    is_real(): boolean {
+        return this.im == 0.0
     }
 }
 
@@ -120,6 +172,9 @@ export function polymul(a: Complex[], b: Complex[]) {
     let zero = new Complex(0, 0)
     let n = a.length + b.length - 1
     let res = []
+    if (b.every(z => z.re == 0 && z.im == 0)) {
+        return a.map(z => zero.copy())
+    }
     for (let i = 0; i < n; i++) {
         res.push(zero.copy())
     }
@@ -128,7 +183,7 @@ export function polymul(a: Complex[], b: Complex[]) {
             res[i + j] = res[i + j].add(a[i].mul(b[j]))
         }
     }
-    return trimseq(res)
+    return res
 }
 
 export function poly(roots: Complex[]) {
@@ -138,4 +193,98 @@ export function poly(roots: Complex[]) {
         p = polymul(p, [one.copy(), root.neg()])
     }
     return p
+}
+
+
+export function asComplex(v: any): Complex {
+    if (v instanceof Complex) {
+        return v
+    }
+    if (parseInt(v, 10) == v) {
+        return new Complex(v, 0)
+    }
+    if (parseFloat(v) == v) {
+        return new Complex(v, 0)
+    }
+    throw new Error(`Expected number or Complex number got ${v}`)
+}
+
+
+export function cplxreal(z: Complex[], tol: number = -1) {
+    if (!Array.isArray(z)) { z = [z] } // asArray
+    if (z.length == 0) {
+        return [z, z]
+    }
+    if (tol < 0.0) {
+        const eps = 1e-16 // probably 2.220446049250313e-16
+        tol = 100 * eps
+    }
+    z = z.map(v => asComplex(v))
+    z = z.sort((a, b) => (a.re - b.re) || (Math.abs(a.im) - Math.abs(b.im)))
+    //console.log('sorted', z)
+
+    let zr = [] // Real parts
+    let zp = [] // Positive imaginary
+    let zn = [] // Negative imaginary
+    for (let i = 0; i < z.length; i++) {
+        if (Math.abs(z[i].im) <= tol * z[i].abs()) {
+            zr.push(z[i].re)
+        } else {
+            if (z[i].im > 0) {
+                zp.push(z[i])
+            } else {
+                zn.push(z[i])
+            }
+        }
+    }
+    //console.log('zr.length, z.length', zr.length, z.length)
+
+    if (zr.length == z.length) {
+        // Input is entirely real
+        return [[], zr]
+    }
+    //console.log('sorted', z)
+    if (zp.length != zn.length) {
+        throw new Error('Array contains complex value with no matching conjugate')
+    }
+    let chunks = [[0]]
+    let k = 0
+    for (let i = 1; i < z.length; i++) {
+        //console.log(k, i, z.length, chunks)
+        if (Math.abs(z[i - 1].re - z[i].re) > tol * z[i - 1].abs()) {
+            k += 1
+            chunks.push([])
+        }
+        chunks[k].push(i)
+    }
+    for (const c of chunks) {
+        let [k0, k1] = [c[0], c[c.length - 1]]
+        //console.log('   index =>', k0, k1)
+        // Sort on imaginary values
+        z.slice(k0, k1 + 1).sort((a, b) => Math.abs(a.im) - Math.abs(b.im))
+    }
+    let two = new Complex(2, 0)
+    let zc = zp.map((_, i) => zp[i].add(zn[i].conj()).div(two))
+
+    //zr = asComplex(zr)
+
+    return [zc, zr]
+    //throw new Error('unimplemented')
+}
+
+
+
+function hypot(a: number, b: number): number {
+    a = Math.abs(a)
+    b = Math.abs(b)
+    if (a < b) {
+        let tmp = a
+        a = b
+        b = tmp
+    }
+    if (a == 0.0) {
+        return 0
+    }
+    let ba = b / a
+    return a * Math.sqrt(1.0 + ba * ba)
 }
