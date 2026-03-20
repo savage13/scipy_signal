@@ -2,6 +2,7 @@
     "type": "module",
     "scripts": {
         "dev": "esbuild --outfile=scipy_signal.js src/scipy.ts --bundle --watch --sourcemap --tree-shaking=false --format=esm",
+        "types": "tsc ./src/scipy.ts --declaration --lib 'es2023' --emitDeclarationOnly --outFile scipy_signal.js",
         "test": "node --watch ./tests/tests.js "
     },
     "dependencies": {
