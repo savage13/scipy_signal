@@ -15,3 +15,8 @@ import './complex.js'
 import './cplxreal.js'
 
 import './zpk2sos.js'
+import './sosfilt.js'
+import './sosfiltfilt.js'
+import './polyval.ts'
+import './freqz_sos.js'
+import './freqz_zpk.js'

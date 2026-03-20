@@ -4,19 +4,17 @@ from scipy import signal
 
 from gentests import *
 
-suite_name = "freqz_zpk"
+suite_name = "freqz_sos"
 
 def header():
     return '''
-import { freqz_zpk, butter, Complex } from '../scipy_signal.js'
+import { freqz_sos, butter, Complex } from '../scipy_signal.js'
 import { deepEqualTolerance } from './deepEqualTolerance.js'
 
 import test from 'node:test'
 import suite from 'node:test'
 import assert from 'node:assert'
 '''
-
-
 
 pars = [
     [2, 0.4, 0.6, None, False, 2*np.pi, 'bandpass'],
@@ -40,8 +38,8 @@ for order, w0, w1, worN, whole, fs, btype in pars:
         W = [w0, w1]
     else:
         W = w0
-    z,p,k = signal.butter(order, W, btype=btype, output='zpk')
-    expect = signal.freqz_zpk(z, p, k, worN, whole, fs)
+    sos = signal.butter(order, W, btype=btype, output='sos')
+    expect = signal.freqz_sos(sos, worN, whole, fs)
     if whole:
         whole = "true"
     else:
@@ -51,18 +49,18 @@ for order, w0, w1, worN, whole, fs, btype in pars:
     tests.append({
         "name": f"{suite_name} {order} {w0} {w1} {worN} {whole} {fs} {btype}",
         "js": [
-            f"const options = {{ btype: '{btype}', analog: false, output: 'zpk' }}",
+            f"const options = {{ btype: '{btype}', analog: false, output: 'sos' }}",
             f"const foptions = {{ worN: {worN}, whole: {whole}, fs: {fs} }}",
             f"const W = {W}",
-            f"const {{z,p,k}} = butter({order}, W, options)",
-            f"const {{w,h}} = freqz_zpk(z, p, k, foptions)",
+            f"const sos = butter({order}, W, options)",
+            f"const {{w,h}} = freqz_sos(sos, foptions)",
         ],
         "expect": expect,
         "assert": [ "w", "h" ]
     })
 
 lines = header()
-lines += suite(suite_name, tests, 8e-15)
+lines += suite(suite_name, tests, 8e-13)
 
 with open(f"tests/{suite_name}.js", "w") as f:
     print(lines, file=f)

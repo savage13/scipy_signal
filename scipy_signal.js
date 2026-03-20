@@ -255,6 +255,12 @@ function poly(roots) {
   }
   return p;
 }
+function isComplex(v) {
+  return v instanceof Complex2;
+}
+function isReal(v) {
+  return parseInt(v, 10) == v || parseFloat(v) == v;
+}
 function asComplex(v) {
   if (v instanceof Complex2) {
     return v;
@@ -332,65 +338,7 @@ function hypot(a, b) {
   return a * Math.sqrt(1 + ba * ba);
 }
 
-// src/scipy.ts
-var band_dict = {
-  "band": "bandpass",
-  "bandpass": "bandpass",
-  "pass": "bandpass",
-  "bp": "bandpass",
-  "bs": "bandstop",
-  "bandstop": "bandstop",
-  "bands": "bandstop",
-  "stop": "bandstop",
-  "l": "lowpass",
-  "low": "lowpass",
-  "lowpass": "lowpass",
-  "lp": "lowpass",
-  "high": "highpass",
-  "highpass": "highpass",
-  "h": "highpass",
-  "hp": "highpass"
-};
-var filter_dict = {
-  "butter": "butter",
-  "butterworth": "butter"
-  // 'cauer': [ellipap, ellipord],
-  // 'elliptic': [ellipap, ellipord],
-  // 'ellip': [ellipap, ellipord],
-  // 'bessel': 'bessel',
-  // 'bessel_phase': [besselap],
-  // 'bessel_delay': [besselap],
-  // 'bessel_mag': [besselap],
-  // 'cheby1': [cheb1ap, cheb1ord],
-  // 'chebyshev1': [cheb1ap, cheb1ord],
-  // 'chebyshevi': [cheb1ap, cheb1ord],
-  // 'cheby2': [cheb2ap, cheb2ord],
-  // 'chebyshev2': [cheb2ap, cheb2ord],
-  // 'chebyshevii': [cheb2ap, cheb2ord],
-};
-function is_number(n) {
-  return parseInt(n) == n;
-}
-function is_positive_number(n) {
-  return is_number(n) && n > 0;
-}
-function buttap(N) {
-  if (!is_positive_number(N)) {
-    throw new Error("Filter order must be a nonnegative integer");
-  }
-  let z = [];
-  let m = arange(-N + 1, N, 2);
-  let p = m.map((mi) => new Complex2(Math.PI * mi / (2 * N), 0)).map((mi) => mi.mul(new Complex2(0, 1))).map((mi) => mi.exp()).map((mi) => mi.neg());
-  let k = 1;
-  return { z, p, k };
-}
-function _relative_degree(z, p) {
-  let degree = p.length - z.length;
-  if (degree < 0) {
-    throw new Error("Improper transfer function. Must have at least as many poles as zeros.");
-  }
-  return degree;
-}
+// src/zpk.ts
 function lp2lp_zpk(z, p, k, wo) {
   z = asArray(z);
   p = asArray(p);
@@ -620,6 +568,13 @@ function single_zpksos(z, p, k) {
   }
   return sos;
 }
+function _relative_degree(z, p) {
+  let degree = p.length - z.length;
+  if (degree < 0) {
+    throw new Error("Improper transfer function. Must have at least as many poles as zeros.");
+  }
+  return degree;
+}
 function nearest_real_complex_idx(fro, to, which) {
   if (!["real", "complex", "any"].includes(which)) {
     throw new Error("which in nearest_real_complex_idx must be real, complex or any");
@@ -643,6 +598,8 @@ function nearest_real_complex_idx(fro, to, which) {
   }
   throw new Error("cannot find nearest value");
 }
+
+// src/filter.ts
 function lfilter_zi(b, a) {
   b = [...asArray(b)];
   a = [...asArray(a)];
@@ -763,15 +720,167 @@ function filtfilt(b, a, x) {
   }
   return y;
 }
+function sosfilt_zi(sos) {
+  if (sos[0].length != 6) {
+    throw new Error("sos mut be shape (n_sections, 6)");
+  }
+  let n_sections = sos.length;
+  let scale = 1;
+  let zi = [];
+  for (let i = 0; i < n_sections; i++) {
+    let b = sos[i].slice(0, 3);
+    let a = sos[i].slice(3);
+    zi.push(lfilter_zi(b, a).map((v) => v * scale));
+    scale *= sum(b) / sum(a);
+  }
+  return zi;
+}
+function _sosfilt(sos, xin, zi) {
+  let x = [...xin];
+  let n_sections = sos.length;
+  for (let i = 0; i < x.length; i++) {
+    let x_cur = 1 * x[i];
+    for (let j = 0; j < n_sections; j++) {
+      let x_new = sos[j][0] * x_cur + zi[j][0];
+      zi[j][0] = sos[j][1] * x_cur - sos[j][4] * x_new + zi[j][1];
+      zi[j][1] = sos[j][2] * x_cur - sos[j][5] * x_new;
+      x_cur = x_new;
+    }
+    x[i] = x_cur;
+  }
+  return x;
+}
+function sosfilt(sos, x, zi) {
+  if (zi == void 0) {
+    zi = sos.map((_) => [0, 0]);
+  }
+  return _sosfilt(sos, x, zi);
+}
+function sosfiltfilt(sos, x) {
+  let axis = -1;
+  let padtype = "odd";
+  let padlen = -1;
+  x = asArray(x);
+  let n_sections = sos.length;
+  let ntaps = 2 * n_sections + 1;
+  ntaps -= Math.min(sos.filter((v) => v[2] == 0).length, sos.filter((v) => v[5] == 0).length);
+  let { edge, ext } = validate_pad(padtype, padlen, x, axis, ntaps);
+  let zi = sosfilt_zi(sos);
+  let zi_fwd = zi.map((v) => [v[0] * ext[0], v[1] * ext[0]]);
+  let y = sosfilt(sos, ext, zi_fwd);
+  let yrev = y.toReversed();
+  let zi_rev = zi.map((v) => [v[0] * yrev[0], v[1] * yrev[0]]);
+  y = sosfilt(sos, yrev, zi_rev);
+  y = y.toReversed();
+  if (edge > 0) {
+    y = [...y.slice(edge, -edge)];
+  }
+  return y;
+}
+
+// src/poly.ts
+function polyval(p, x) {
+  if (isComplex(x) || p.some((v2) => isComplex(v2))) {
+    return zpolyval(p.map(asComplex), asComplex(x));
+  }
+  x = x;
+  let P = p;
+  let v = 0;
+  let k = 0;
+  for (let i = p.length - 1; i >= 0; i--) {
+    v += Math.pow(x, k++) * P[i];
+  }
+  return v;
+}
+function zpolyval(p, x) {
+  const n = p.length;
+  if (n <= 0) {
+    return new Complex2(0, 0);
+  }
+  let v = p[n - 1];
+  let xn = new Complex2(1, 0);
+  for (let i = p.length - 2; i >= 0; i--) {
+    xn = xn.mul(x);
+    v = p[i].mul(xn).add(v);
+  }
+  return v;
+}
+
+// src/scipy.ts
+var band_dict = {
+  "band": "bandpass",
+  "bandpass": "bandpass",
+  "pass": "bandpass",
+  "bp": "bandpass",
+  "bs": "bandstop",
+  "bandstop": "bandstop",
+  "bands": "bandstop",
+  "stop": "bandstop",
+  "l": "lowpass",
+  "low": "lowpass",
+  "lowpass": "lowpass",
+  "lp": "lowpass",
+  "high": "highpass",
+  "highpass": "highpass",
+  "h": "highpass",
+  "hp": "highpass"
+};
+var filter_dict = {
+  "butter": "butter",
+  "butterworth": "butter"
+  // 'cauer': [ellipap, ellipord],
+  // 'elliptic': [ellipap, ellipord],
+  // 'ellip': [ellipap, ellipord],
+  // 'bessel': 'bessel',
+  // 'bessel_phase': [besselap],
+  // 'bessel_delay': [besselap],
+  // 'bessel_mag': [besselap],
+  // 'cheby1': [cheb1ap, cheb1ord],
+  // 'chebyshev1': [cheb1ap, cheb1ord],
+  // 'chebyshevi': [cheb1ap, cheb1ord],
+  // 'cheby2': [cheb2ap, cheb2ord],
+  // 'chebyshev2': [cheb2ap, cheb2ord],
+  // 'chebyshevii': [cheb2ap, cheb2ord],
+};
+function is_number(n) {
+  return parseInt(n) == n;
+}
+function is_positive_number(n) {
+  return is_number(n) && n > 0;
+}
+function buttap(N) {
+  if (!is_positive_number(N)) {
+    throw new Error("Filter order must be a nonnegative integer");
+  }
+  let z = [];
+  let m = arange(-N + 1, N, 2);
+  let p = m.map((mi) => new Complex2(Math.PI * mi / (2 * N), 0)).map((mi) => mi.mul(new Complex2(0, 1))).map((mi) => mi.exp()).map((mi) => mi.neg());
+  let k = 1;
+  return { z, p, k };
+}
 function freqz_zpk(z, p, k, options = {}) {
-  const default_options = {
-    worN: 512,
-    whole: false,
-    fs: 2 * Math.PI
-  };
   const TAU = 2 * Math.PI;
   z = asArray(z);
   p = asArray(p);
+  let w = freqz_options(options);
+  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  let h = [];
+  let k0 = new Complex2(k, 0);
+  for (const zm of zm1) {
+    let numer = zpolyval_from_roots(zm, z);
+    let denom = zpolyval_from_roots(zm, p);
+    h.push(numer.div(denom).mul(k0));
+  }
+  w = w.map((v) => v * options.fs / TAU);
+  return { w, h };
+}
+function freqz_options(options = {}) {
+  const TAU = 2 * Math.PI;
+  const default_options = {
+    worN: 512,
+    whole: false,
+    fs: TAU
+  };
   options = Object.assign({}, default_options, options);
   let lastpoint = options.whole ? TAU : Math.PI;
   let w = [];
@@ -783,13 +892,37 @@ function freqz_zpk(z, p, k, options = {}) {
     w = asArray(options.worN);
     w = w.map((v) => TAU * v / options.fs);
   }
-  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  return w;
+}
+function _freqz(b, a, zm1) {
   let h = [];
-  let k0 = new Complex2(k, 0);
   for (const zm of zm1) {
-    let numer = zpolyval_from_roots(zm, z);
-    let denom = zpolyval_from_roots(zm, p);
-    h.push(numer.div(denom).mul(k0));
+    let numer = polyval(b, zm);
+    let denom = polyval(a, zm);
+    h.push(numer.div(denom));
+  }
+  return h;
+}
+function freqz(b, a, options = {}) {
+  const TAU = 2 * Math.PI;
+  let w = freqz_options(options);
+  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  let h = _freqz(b, a, zm1);
+  w = w.map((v) => v * options.fs / TAU);
+  return { w, h };
+}
+function freqz_sos(sos, options = {}) {
+  const TAU = 2 * Math.PI;
+  let n_sections = sos.length;
+  let w = freqz_options(options);
+  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  let h = w.map((_) => new Complex2(1, 0));
+  for (let j = 0; j < n_sections; j++) {
+    let row = sos[j];
+    let b = row.slice(0, 3);
+    let a = row.slice(3);
+    let h0 = _freqz(b, a, zm1);
+    h = h.map((_, i) => h[i].mul(h0[i]));
   }
   w = w.map((v) => v * options.fs / TAU);
   return { w, h };
@@ -870,7 +1003,7 @@ function iirfilter(N, Wn, options) {
     case "ba":
       return zpk2tf(z, p, k);
     case "sos":
-      throw new Error("sos output not implemented");
+      return zpk2sos(z, p, k);
     default:
       throw new Error("unknown output type");
   }
@@ -892,16 +1025,17 @@ function butter_bandrej_filtfilt(data, cutoffs, fs, order = 2) {
 export {
   Complex2 as Complex,
   arange,
+  asComplex,
   bilinear_zpk,
   buttap,
   butter,
   butter_bandrej_filtfilt,
   cplxreal,
   filtfilt,
+  freqz,
+  freqz_sos,
   freqz_zpk,
   iirfilter,
-  lfilter,
-  lfilter_zi,
   linspace,
   lp2bp_zpk,
   lp2bs_zpk,
@@ -910,6 +1044,9 @@ export {
   ones,
   poly,
   polymul,
+  polyval,
+  sosfilt,
+  sosfiltfilt,
   zeros,
   zpk2sos,
   zpk2tf,

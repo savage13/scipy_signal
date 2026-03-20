@@ -196,6 +196,13 @@ export function poly(roots: Complex[]) {
 }
 
 
+export function isComplex(v: any): boolean {
+    return (v instanceof Complex)
+}
+export function isReal(v: any): boolean {
+    return (parseInt(v, 10) == v) || (parseFloat(v) == v)
+}
+
 export function asComplex(v: any): Complex {
     if (v instanceof Complex) {
         return v
