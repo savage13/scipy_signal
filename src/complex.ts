@@ -1,11 +1,26 @@
 
+/**
+ * Complex number
+ */
 export class Complex {
     re: number;
     im: number;
+    /**
+     * @constructor
+     * @param re - Real part
+     * @param im - Imaginary part
+     *
+     * @return - Complex number (re, im)
+     */
     constructor(re: number, im: number) {
         this.re = re
         this.im = im
     }
+    /**
+     * Copy a complex number
+     *
+     * @return {Complex} - Copy of Complex number (re, im)
+     */
     copy(): Complex {
         return new Complex(this.re, this.im)
     }
@@ -168,7 +183,7 @@ export function trimseq(a: Complex[]): Complex[] {
     return a
 }
 
-export function polymul(a: Complex[], b: Complex[]) {
+export function polymul(a: Complex[], b: Complex[]): Complex[] {
     let zero = new Complex(0, 0)
     let n = a.length + b.length - 1
     let res = []
@@ -186,7 +201,7 @@ export function polymul(a: Complex[], b: Complex[]) {
     return res
 }
 
-export function poly(roots: Complex[]) {
+export function poly(roots: Complex[]): Complex[] {
     const one = new Complex(1, 0)
     let p = [new Complex(1, 0)]
     for (const root of roots) {
@@ -217,7 +232,7 @@ export function asComplex(v: any): Complex {
 }
 
 
-export function cplxreal(z: Complex[], tol: number = -1) {
+export function cplxreal(z: Complex[], tol: number = -1): [Complex[], number[]] {
     if (!Array.isArray(z)) { z = [z] } // asArray
     if (z.length == 0) {
         return [z, z]
@@ -280,7 +295,11 @@ export function cplxreal(z: Complex[], tol: number = -1) {
 }
 
 
-
+/**
+ * Compute hypot of a and b
+ * @param a - a value
+ * @param b - b value
+ */
 function hypot(a: number, b: number): number {
     a = Math.abs(a)
     b = Math.abs(b)

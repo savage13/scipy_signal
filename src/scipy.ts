@@ -66,7 +66,12 @@ export type BA = {
 }
 export type SOS = number[][]; // Second order sections
 
-
+/**
+ * Check is value is an integer
+ * @param n Value
+ * @return true if an integer
+ *
+ */
 function is_number(n: any): boolean {
     return parseInt(n) == n
 }
@@ -136,7 +141,7 @@ function freqz_options(options: any = {}): number[] {
     return w
 }
 
-function _freqz(b: number[], a: number[], zm1: Complex[]) {
+function _freqz(b: number[], a: number[], zm1: Complex[]): Complex[] {
     let h = []
     for (const zm of zm1) {
         let numer = polyval(b, zm) as Complex

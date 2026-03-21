@@ -1,7 +1,14 @@
-
 import { SOS } from './scipy'
 import { asArray, sum, zeros } from './numpy'
 
+/**
+ * Determine initial conditions for a filter
+ *
+ * @param b filter coefficients
+ * @param a filter coefficients
+ *
+ * @return Filter initial conditions
+ */
 export function lfilter_zi(b: number[], a: number[]): number[] {
     b = [...asArray(b) as number[]]
     a = [...asArray(a) as number[]]
@@ -34,6 +41,17 @@ export function lfilter_zi(b: number[], a: number[]): number[] {
     return zi
 }
 
+/**
+ * Pad a input array
+ *
+ * @param padtype even, odd, constant, or none (even and constant unsupported)
+ * @param padlen amount to pad array by; if < 0 use ntaps * 3
+ * @param x input array
+ * @param axis axis to pad on, unused
+ * @param ntaps see padlen
+ *
+ * @param { edge: amount padded by, ext: padded array }
+ */
 function validate_pad(padtype: string, padlen: number, x: number[], axis: number, ntaps: number): { edge: number, ext: number[] } {
     const padtypes = { even: 1, odd: 1, constant: 1, none: 1 }
     let edge = 0
@@ -69,6 +87,15 @@ function validate_pad(padtype: string, padlen: number, x: number[], axis: number
     return { edge, ext }
 }
 
+/**
+ * Extend a sequence in an odd manner
+ *
+ * @param x input array
+ * @param n amount to extend array by
+ *
+ * @return extended array
+ */
+
 function odd_ext(x: number[], n: number): number[] {
     if (n < 1) {
         return x
@@ -84,6 +111,18 @@ function odd_ext(x: number[], n: number): number[] {
     return [...left_end, ...x, ...right_end]
 }
 
+/**
+ * Apply a filter coefficients to an array
+ *    Filter is applied in one pass
+ *
+ * @param b Filter components (numerator)
+ * @param a Filter components (denomator)
+ * @param x Input array
+ * @param axis Input array axis, unused
+ * @param zi Filter initial conditions
+ *
+ * @return Filtered array
+ */
 export function lfilter(b: number[], a: number[], x: number[], axis: number, zi: number[]): { y: number[], zf: number[] } {
     axis = axis * 1 // unused
     const z = [...zi]
@@ -105,6 +144,17 @@ export function lfilter(b: number[], a: number[], x: number[], axis: number, zi:
     }
     return { y, zf: z }
 }
+
+/**
+ * Apply a filter coefficients to an array
+ *    Filter is applied in two passes, forward and backwards
+ *
+ * @param b Filter components (numerator)
+ * @param a Filter components (denomator)
+ * @param x Input array
+ *
+ * @return Filtered array
+ */
 
 export function filtfilt(b: number[], a: number[], x: number[]): number[] {
     let axis = -1
@@ -138,6 +188,13 @@ export function filtfilt(b: number[], a: number[], x: number[]): number[] {
     return y
 }
 
+/**
+ * Determine initial conditions for a Second order section filter
+ *
+ * @param sos Second order section filter coefficients
+ *
+ * @return Second order section initial conditions
+ */
 export function sosfilt_zi(sos: SOS): number[][] {
     if (sos[0].length != 6) {
         throw new Error('sos mut be shape (n_sections, 6)')
@@ -157,6 +214,17 @@ export function sosfilt_zi(sos: SOS): number[][] {
     return zi
 }
 
+/**
+ * Apply Second order section (SOS) filter coefficients to an array
+ *    Filter is applied in one pass
+ *    Internal function
+ *
+ * @param sos Second order section filter coefficients
+ * @param x Array to be filtered
+ * @param zi Initial conditions for the filter
+ *
+ * @return Filtered version of x
+ */
 // after https://github.com/scipy/scipy/blob/v1.17.0/scipy/signal/_sosfilt.pyx
 function _sosfilt(sos: SOS, xin: number[], zi: number[][]): number[] {
     let x = [...xin]
@@ -174,6 +242,16 @@ function _sosfilt(sos: SOS, xin: number[], zi: number[][]): number[] {
     return x
 }
 
+/**
+ * Apply Second order section (SOS) filter coefficients to an array
+ *    Filter is applied in one pass
+ *
+ * @param sos Second order section filter coefficients
+ * @param x Array to be filtered
+ * @param zi Initial conditions for the filter
+ *
+ * @return Filtered version of x
+ */
 
 export function sosfilt(sos: SOS, x: number[], zi: number[][]): number[] {
     // Extra preprocessing here if necessary
@@ -183,6 +261,15 @@ export function sosfilt(sos: SOS, x: number[], zi: number[][]): number[] {
     return _sosfilt(sos, x, zi)
 }
 
+/**
+ * Apply Second order section (SOS) filter coefficients to an array
+ *    Filter is applied in two passes, forward and backwards
+ *
+ * @param sos Second order section filter coefficients
+ * @param x Array to be filtered
+ *
+ * @return Filtered version of x
+ */
 export function sosfiltfilt(sos: SOS, x: number[]): number[] {
     let axis = -1 // only 1D presently
     let padtype = 'odd'

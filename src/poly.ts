@@ -1,6 +1,16 @@
 
 import { Complex, asComplex, isComplex } from './complex'
 
+/**
+ * Compute value of complex polynomial at value x
+ *    Takes either a number or complex values
+ *
+ * @param p Polynomial coefficients from high to low
+ * @param x Value to evaluate polynomial at
+ *
+ * @return Polynomial p evaluated at x
+ */
+
 export function polyval(p: number[] | Complex[], x: number | Complex): number | Complex {
     if (isComplex(x) || p.some(v => isComplex(v))) {
         return zpolyval(p.map(asComplex), asComplex(x))
@@ -16,8 +26,13 @@ export function polyval(p: number[] | Complex[], x: number | Complex): number | 
 }
 
 
-// p from [high order to lower order]
-//  p[0] x^5 + p[1] x^4 + p[2] x^3 + p[3] x^2 + p[4] x^1 + p[5]
+/**
+ * Compute value of complex polynomial at value x
+ * @param p Polynomial coefficients from high to low
+ * @param x Value to evaluate polynomial at
+ *
+ * @return Polynomial p evaluated at x
+ */
 export function zpolyval(p: Complex[], x: Complex): Complex {
     const n = p.length
     if (n <= 0) {
