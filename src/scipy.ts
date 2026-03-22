@@ -55,136 +55,19 @@ const filter_dict: { [key: string]: string } = {
     // 'chebyshevii': [cheb2ap, cheb2ord],
 }
 
-export type ZPK = {
-    z: Complex[];
-    p: Complex[];
-    k: number;
-}
-export type BA = {
-    b: number[];
-    a: number[];
-}
-export type SOS = number[][]; // Second order sections
-
 /**
- * Check is value is an integer
- * @param n Value
- * @return true if an integer
+ * Construct a IIR filter
  *
+ * @param N fitler order
+ * @param Wn filter corners, number for lowpass or highpass
+ *            number[] for bandpass or bandstop
+ * @param options filter options
+ *          - btype: bandpass, bandstop, lowpass, highpass (defualt: bandpass)
+ *          - analog: true or false  (default: false)
+ *          - ftype: butter. (bessel, chebyshev1, chebyshev2, elliptic are unsupported)
+ *          - output: zpk, sos, ba (default: ba)
+ * @return Filter description in ZPK, BA or SOS format
  */
-function is_number(n: any): boolean {
-    return parseInt(n) == n
-}
-
-function is_positive_number(n: any): boolean {
-    return is_number(n) && n > 0
-}
-
-export function buttap(N: number): ZPK {
-    if (!is_positive_number(N)) {
-        throw new Error("Filter order must be a nonnegative integer")
-    }
-    let z: Complex[] = []
-    let m = arange(-N + 1, N, 2)
-
-    let p = m.map(mi => new Complex(Math.PI * mi / (2 * N), 0))
-        .map(mi => mi.mul(new Complex(0, 1)))
-        .map(mi => mi.exp())
-        .map(mi => mi.neg())
-    let k = 1.0
-    return { z, p, k }
-}
-
-export function freqz_zpk(z: Complex[], p: Complex[], k: number, options: any = {}): { w: number[], h: Complex[] } {
-
-    const TAU = 2 * Math.PI
-
-    z = asArray(z) as Complex[]
-    p = asArray(p) as Complex[]
-
-    let w = freqz_options(options)
-
-    let zm1 = w.map(v => new Complex(0, v).exp())
-    let h: Complex[] = []
-    let k0 = new Complex(k, 0)
-    for (const zm of zm1) {
-        let numer = zpolyval_from_roots(zm, z)
-        let denom = zpolyval_from_roots(zm, p)
-        h.push(numer.div(denom).mul(k0))
-    }
-
-    w = w.map(v => v * options.fs / TAU)
-
-    return { w, h }
-}
-
-function freqz_options(options: any = {}): number[] {
-    const TAU = 2 * Math.PI
-    const default_options = {
-        worN: 512,
-        whole: false,
-        fs: TAU,
-    }
-    options = Object.assign({}, default_options, options)
-
-    let lastpoint = (options.whole) ? TAU : Math.PI
-
-    let w: number[] = []
-    if (options.worN == -1) { // none
-        w = linspace(0, lastpoint, 512, { endpoint: false })
-    } else if (Number.isInteger(options.worN)) {
-        w = linspace(0, lastpoint, options.worN, { endpoint: false })
-    } else {
-        w = asArray(options.worN) as number[]
-        w = w.map(v => TAU * v / options.fs)
-    }
-    return w
-}
-
-function _freqz(b: number[], a: number[], zm1: Complex[]): Complex[] {
-    let h = []
-    for (const zm of zm1) {
-        let numer = polyval(b, zm) as Complex
-        let denom = polyval(a, zm) as Complex
-        h.push(numer.div(denom))
-    }
-    return h
-}
-
-export function freqz(b: number[], a: number[], options: any = {}): { w: number[], h: Complex[] } {
-    const TAU = 2 * Math.PI
-
-    let w = freqz_options(options)
-
-    let zm1 = w.map(v => new Complex(0, v).exp())
-    let h = _freqz(b, a, zm1)
-    w = w.map(v => v * options.fs / TAU)
-
-    return { w, h }
-}
-
-export function freqz_sos(sos: SOS, options: any = {}): { w: number[], h: Complex[] } {
-    const TAU = 2 * Math.PI
-    let n_sections = sos.length
-
-    let w = freqz_options(options)
-
-    let zm1 = w.map(v => new Complex(0, v).exp())
-
-    let h = w.map(_ => new Complex(1, 0))
-
-    for (let j = 0; j < n_sections; j++) {
-        let row = sos[j];
-        let b = row.slice(0, 3)
-        let a = row.slice(3)
-        let h0 = _freqz(b, a, zm1)
-        h = h.map((_, i) => h[i].mul(h0[i]))
-    }
-    w = w.map(v => v * options.fs / TAU)
-    return { w, h }
-}
-
-
 export function iirfilter(N: number, Wn: number | number[], options: any): ZPK | BA | SOS {
     let fs = 1.0
     let warped = []
@@ -274,6 +157,234 @@ export function iirfilter(N: number, Wn: number | number[], options: any): ZPK |
     }
 }
 
+/**
+ * Zeros, Poles, Constant Filter
+ *
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Real constant
+ *
+ */
+export type ZPK = {
+    z: Complex[];
+    p: Complex[];
+    k: number;
+}
+/**
+ * Polynomial Filter
+ * @param b polynomial coefficients numerator
+ * @param a polynomial coefficients numerator
+ */
+export type BA = {
+    b: number[];
+    a: number[];
+}
+/**
+ * Second order Section
+ *   stored as 3 coefficients of polynomial numerator,
+ *   then 3 coefficient of polynomial denominator
+ *   for 6 terms total
+ *
+ */
+export type SOS = number[][]; // Second order sections
+
+
+/**
+ * Check is value is an integer
+ * @param n Value
+ * @return true if an integer
+ *
+ */
+function is_integer(n: any): boolean {
+    return parseInt(n) == n
+}
+
+/**
+ * Check is value is a positive intger
+ * @param n Value
+ * @return true if an integer, positive and non-zero (> 0)
+ */
+function is_positive_number(n: any): boolean {
+    return is_integer(n) && n > 0
+}
+
+/**
+ * Compute response of a filter in the frequency domain
+ *
+ * @param b fitler polynomial coefficients, numerator
+ * @param a fitler polynomial coefficients, denominator
+ * @param options response options
+ *      - worN frequencies or length (default: 512)
+ *      - fs sampling frequency (default: 2*pi)
+ *      - whole compute frequencies up to fs (default: false)
+ * @returns frequencies and response
+ *      - w frequencies, real (from 0 to fs)
+ *      - h response, complex
+ */
+export function freqz(b: number[], a: number[], options: any = {}): { w: number[], h: Complex[] } {
+    const TAU = 2 * Math.PI
+
+    let w = freqz_options(options)
+
+    let zm1 = w.map(v => new Complex(0, v).exp())
+    let h = _freqz(b, a, zm1)
+    w = w.map(v => v * options.fs / TAU)
+
+    return { w, h }
+}
+
+/**
+ * Compute response of a filter in the frequency domain
+ *
+ * @param z fitler complex zeros
+ * @param p fitler complex poles
+ * @param k filter constant
+ * @param options response options
+ *      - worN frequencies or length (default: 512)
+ *      - fs sampling frequency (default: 2*pi)
+ *      - whole compute frequencies up to fs (default: false)
+ * @returns frequencies and response
+ *      - w frequencies, real (from 0 to fs)
+ *      - h response, complex
+ */
+export function freqz_zpk(z: Complex[], p: Complex[], k: number, options: any = {}): { w: number[], h: Complex[] } {
+
+    const TAU = 2 * Math.PI
+
+    z = asArray(z) as Complex[]
+    p = asArray(p) as Complex[]
+
+    let w = freqz_options(options)
+
+    let zm1 = w.map(v => new Complex(0, v).exp())
+    let h: Complex[] = []
+    let k0 = new Complex(k, 0)
+    for (const zm of zm1) {
+        let numer = zpolyval_from_roots(zm, z)
+        let denom = zpolyval_from_roots(zm, p)
+        h.push(numer.div(denom).mul(k0))
+    }
+
+    w = w.map(v => v * options.fs / TAU)
+
+    return { w, h }
+}
+/**
+ * Compute the frequencies for a response from options
+ * @param options response options
+ *      - worN frequencies or length (default: 512)
+ *      - fs sampling frequency (default: 2*pi)
+ *      - whole compute frequencies up to fs (default: false)
+ * @returns frequencies, real
+ */
+function freqz_options(options: any = {}): number[] {
+    const TAU = 2 * Math.PI
+    const default_options = {
+        worN: 512,
+        whole: false,
+        fs: TAU,
+    }
+    options = Object.assign({}, default_options, options)
+
+    let lastpoint = (options.whole) ? TAU : Math.PI
+
+    let w: number[] = []
+    if (options.worN == -1) { // none
+        w = linspace(0, lastpoint, 512, { endpoint: false })
+    } else if (Number.isInteger(options.worN)) {
+        w = linspace(0, lastpoint, options.worN, { endpoint: false })
+    } else {
+        w = asArray(options.worN) as number[]
+        w = w.map(v => TAU * v / options.fs)
+    }
+    return w
+}
+
+/**
+ * Compute response of a filter in the frequency domain
+ *
+ * @param b fitler polynomial coefficients, numerator
+ * @param a fitler polynomial coefficients, denominator
+ * @param zm1 frequencies to compute response at
+ * @returns response, complex
+ */
+function _freqz(b: number[], a: number[], zm1: Complex[]): Complex[] {
+    let h = []
+    for (const zm of zm1) {
+        let numer = polyval(b, zm) as Complex
+        let denom = polyval(a, zm) as Complex
+        h.push(numer.div(denom))
+    }
+    return h
+}
+
+/**
+ * Compute response of a filter in the frequency domain
+ *
+ * @param sos fitler coefficients in a second order section
+ * @param options response options
+ *      - worN frequencies or length (default: 512)
+ *      - fs sampling frequency (default: 2*pi)
+ *      - whole compute frequencies up to fs (default: false)
+ * @returns frequencies and response
+ *      - w frequencies, real (from 0 to fs)
+ *      - h response, complex
+ */
+
+export function freqz_sos(sos: SOS, options: any = {}): { w: number[], h: Complex[] } {
+    const TAU = 2 * Math.PI
+    let n_sections = sos.length
+
+    let w = freqz_options(options)
+
+    let zm1 = w.map(v => new Complex(0, v).exp())
+
+    let h = w.map(_ => new Complex(1, 0))
+
+    for (let j = 0; j < n_sections; j++) {
+        let row = sos[j];
+        let b = row.slice(0, 3)
+        let a = row.slice(3)
+        let h0 = _freqz(b, a, zm1)
+        h = h.map((_, i) => h[i].mul(h0[i]))
+    }
+    w = w.map(v => v * options.fs / TAU)
+    return { w, h }
+}
+
+/**
+ * Analog prototype for a butterworth filter
+ * @param N Filter order
+ * @return analog filter in ZPK format
+ */
+export function buttap(N: number): ZPK {
+    if (!is_positive_number(N)) {
+        throw new Error("Filter order must be a nonnegative integer")
+    }
+    let z: Complex[] = []
+    let m = arange(-N + 1, N, 2)
+
+    let p = m.map(mi => new Complex(Math.PI * mi / (2 * N), 0))
+        .map(mi => mi.mul(new Complex(0, 1)))
+        .map(mi => mi.exp())
+        .map(mi => mi.neg())
+    let k = 1.0
+    return { z, p, k }
+}
+
+/**
+ * Construct a IIR Butterworth filter
+ *
+ * @param N fitler order
+ * @param Wn filter corners, number for lowpass or highpass
+ *            number[] for bandpass or bandstop
+ * @param options filter options
+ *          - btype: bandpass, bandstop, lowpass, highpass (defualt: bandpass)
+ *          - analog: true or false  (default: false)
+ *          - ftype: always butter
+ *          - output: zpk, sos, ba (default: ba)
+ * @return Filter description in ZPK, BA or SOS format
+ */
 export function butter(N: number, Wn: number | number[], options: any = {}): BA | ZPK | SOS {
     // N = order
     // Wn = frequencies
@@ -290,9 +401,19 @@ function butter_bandrej(cutoffs: number[], fs: number, order: number = 2): BA | 
     return butter(order, normal_cutoffs, options)
 }
 
+/**
+ * Construct and filter data using a Butterworth IIRFilter
+ *
+ * @param input data
+ * @param cutoffs filter corners, low and high frequencies
+ * @param fs sampling frequency
+ * @param order filter order (default: 2)
+ * @return filtered data, real
+ */
 export function butter_bandrej_filtfilt(data: number[], cutoffs: number[], fs: number, order: number = 2): number[] {
     // data - 1D array of data
     // cutoffs - []
     let { b, a } = butter_bandrej(cutoffs, fs, order) as BA
     return filtfilt(b, a, data)
 }
+

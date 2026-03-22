@@ -24,6 +24,10 @@ export class Complex {
     copy(): Complex {
         return new Complex(this.re, this.im)
     }
+    /**
+     * Take exponential of complex number
+     * @return exp(this)
+     */
     exp(): Complex {
         const x = this.re
         const y = this.im
@@ -32,9 +36,17 @@ export class Complex {
         let im = ex * Math.sin(y)
         return new Complex(re, im)
     }
+    /**
+     * Take negative of complex number
+     * @return -1 * this
+     */
     neg(): Complex {
         return this.mul(new Complex(-1, 0))
     }
+    /**
+     * Multiply two complex numbers
+     * @return a * b
+     */
     mul(z: Complex): Complex {
         let a = this.re
         let b = this.im
@@ -42,15 +54,21 @@ export class Complex {
         let d = z.im
         return new Complex(a * c - b * d, a * d + b * c)
     }
-    is_zero(): boolean {
-        return this.re == 0 && this.im == 0
-    }
+    /**
+     * Compare two complex number within an absolute tolerance
+     * @param z
+     * @return true if ||this-z|| < 1e-13
+     */
     cmp(z: Complex): boolean {
         let dx = Math.abs(this.re - z.re)
         let dy = Math.abs(this.im - z.im)
         return dx < 1e-13 && dy < 1e-13
     }
     // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) csqrt()
+    /**
+     * Take square root of a complex number
+     * @return this^(1/2)
+     */
     sqrt(): Complex {
         let x = this.re
         let y = this.im
@@ -79,6 +97,11 @@ export class Complex {
         return new Complex(re, im)
     }
     // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) cdiv()
+    /**
+     * Divide two complex numbers
+     * @param z complex denominator
+     * @return this / z
+     */
     div(z: Complex): Complex {
         let ar = this.re
         let ai = this.im
@@ -114,6 +137,11 @@ export class Complex {
         //console.log('     =>', re, im)
         return new Complex(re, im)
     }
+    /**
+     * Add two complex numbers
+     * @param z complex number to add
+     * @return this + z
+     */
     add(z: Complex): Complex {
         let x = this.re
         let y = this.im
@@ -121,6 +149,11 @@ export class Complex {
         let v = z.im
         return new Complex(x + u, y + v)
     }
+    /**
+     * Subtract two complex numbers
+     * @param z complex number to subtract
+     * @return this - z
+     */
     sub(z: Complex): Complex {
         let x = this.re
         let y = this.im
@@ -128,18 +161,42 @@ export class Complex {
         let v = z.im
         return new Complex(x - u, y - v)
     }
+    /**
+     * Convert to a string
+     * @return "(re, im)"
+     */
     str(): string {
         return `(${this.re}, ${this.im})`
     }
+    /**
+     * Take absolute value of a complex number
+     * @return ||this||
+     */
     abs(): number {
         return Math.sqrt(this.re * this.re + this.im * this.im)
     }
+    /**
+     * Take conjugate of a complex number
+     * @return (re, -im)
+     */
     conj(): Complex {
         return new Complex(this.re, -this.im)
     }
+    /**
+     * Check is complex is real
+     * @return true if im == 0
+     */
     is_real(): boolean {
         return this.im == 0.0
     }
+    /**
+     * Check if complex is zero
+     * @return true if real and imag == 0
+     */
+    is_zero(): boolean {
+        return this.re == 0 && this.im == 0
+    }
+
 }
 
 function isNegativeZero(v: number): boolean {
@@ -154,6 +211,11 @@ function sign(x: number): number {
     }
 }
 
+/**
+ * Multiply an array of Complex numbers
+ * @param v array of complex number to multiply
+ * @returns v[0] * v[1] * .... v[n-1]
+ */
 export function zprod(v: Complex[]): Complex {
     let out = new Complex(1, 0)
     for (let i = 0; i < v.length; i++) {
@@ -162,13 +224,19 @@ export function zprod(v: Complex[]): Complex {
     return out
 }
 
+/**
+ * Compute value of complex polynomial defined by roots at a value
+ * @param x value to evaluate at
+ * @param r roots of the polynomial
+ * @return (x - r[0]) * (x - r[1]) * (x - r[2]) ... (x - r[n-1])
+ */
 export function zpolyval_from_roots(x: Complex, r: Complex[]): Complex {
     // tensor=True is only important when x is multidimensional
     let dx = r.map(root => x.sub(root))
     return zprod(dx)
 }
 
-export function trimseq(a: Complex[]): Complex[] {
+function trimseq(a: Complex[]): Complex[] {
     let n = a.length
     if (n == 0 || !(a[n - 1].is_zero())) {
         return a
@@ -183,6 +251,12 @@ export function trimseq(a: Complex[]): Complex[] {
     return a
 }
 
+/**
+ * Multiply two complex polynomials
+ * @param a complex polynomial
+ * @param b complex polynomial
+ * @param a * b polynomial
+ */
 export function polymul(a: Complex[], b: Complex[]): Complex[] {
     let zero = new Complex(0, 0)
     let n = a.length + b.length - 1
@@ -201,6 +275,11 @@ export function polymul(a: Complex[], b: Complex[]): Complex[] {
     return res
 }
 
+/**
+ * Find complex polynomial coefficients from a set of roots
+ * @param roots polynomial roots
+ * @return polynomial coefficients
+ */
 export function poly(roots: Complex[]): Complex[] {
     const one = new Complex(1, 0)
     let p = [new Complex(1, 0)]
@@ -210,14 +289,30 @@ export function poly(roots: Complex[]): Complex[] {
     return p
 }
 
-
+/**
+ * Check if value is complex
+ * @param v value
+ * @return true if value is Complex (instanceof)
+ */
 export function isComplex(v: any): boolean {
     return (v instanceof Complex)
 }
+/**
+ * Check is value is real
+ * @param v value
+ * @return true if value is either an integer or number
+ */
 export function isReal(v: any): boolean {
     return (parseInt(v, 10) == v) || (parseFloat(v) == v)
 }
 
+/**
+ * Convert a value to Complex
+ *  This is throw an exception on a non-numeric value
+ *
+ * @param v value
+ * @return Complex value
+ */
 export function asComplex(v: any): Complex {
     if (v instanceof Complex) {
         return v
@@ -231,11 +326,25 @@ export function asComplex(v: any): Complex {
     throw new Error(`Expected number or Complex number got ${v}`)
 }
 
-
+/**
+ * Split into complex and real parts, combining conjugate pairs.
+ * @param z Complex array to be sorted and split
+ * @param tol tolerance (1e-14)
+ * @return [ c, r]
+ *     - c Complex elements of `z`, with each pair represented by a single value
+ *        having positive imaginary part, sorted first by real part, and then
+ *       by magnitude of imaginary part. The pairs are averaged when combined
+ *       to reduce error.
+ *     - r Real elements of `z` (those having imaginary part less than
+ *      `tol` times their magnitude), sorted by value.
+ *
+ * Documentation taken from
+ *  https://github.com/scipy/scipy/blob/v1.17.0/scipy/signal/_filter_design.py#L983
+ */
 export function cplxreal(z: Complex[], tol: number = -1): [Complex[], number[]] {
     if (!Array.isArray(z)) { z = [z] } // asArray
     if (z.length == 0) {
-        return [z, z]
+        return [[], []]
     }
     if (tol < 0.0) {
         const eps = 1e-16 // probably 2.220446049250313e-16
@@ -299,6 +408,8 @@ export function cplxreal(z: Complex[], tol: number = -1): [Complex[], number[]] 
  * Compute hypot of a and b
  * @param a - a value
  * @param b - b value
+ *
+ * @return sqrt(a*a+b*b)
  */
 function hypot(a: number, b: number): number {
     a = Math.abs(a)

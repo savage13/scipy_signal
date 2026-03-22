@@ -4,6 +4,17 @@ import { asArray, argmin, zeros, sum } from './numpy'
 
 import { BA, SOS, ZPK } from './scipy'
 
+/**
+ * Convert a lowpass prototype to a lowpass with a different frequency
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @param wo Angular Frequency of the low pass cutoff (rad/s)
+ * @return ZPK
+ *     - z Complex zeros
+ *     - p Complex poles
+ *     - k Constant
+ */
 export function lp2lp_zpk(z: Complex[], p: Complex[], k: number, wo: number): ZPK {
     z = asArray(z) as Complex[]
     p = asArray(p) as Complex[]
@@ -20,6 +31,17 @@ export function lp2lp_zpk(z: Complex[], p: Complex[], k: number, wo: number): ZP
     return { z: z_lp, p: p_lp, k: k_lp }
 }
 
+/**
+ * Convert a lowpass prototype to a highpass with a different frequency
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @param wo Angular Frequency of the high pass cutoff (rad/s)
+ * @return ZPK
+ *     - z Complex zeros
+ *     - p Complex poles
+ *     - k Constant
+ */
 export function lp2hp_zpk(z: Complex[], p: Complex[], k: number, wo: number): ZPK {
     z = asArray(z) as Complex[]
     p = asArray(p) as Complex[]
@@ -42,6 +64,18 @@ export function lp2hp_zpk(z: Complex[], p: Complex[], k: number, wo: number): ZP
     return { z: z_hp, p: p_hp, k: k_hp }
 }
 
+/**
+ * Convert a lowpass prototype to a bandpass with a different frequencies
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @param wo Angular Frequency of the band pass cutoff (rad/s)
+ * @param bw Angular Bandwidth of the band pass cutoff (rad/s)
+ * @return ZPK
+ *     - z Complex zeros
+ *     - p Complex poles
+ *     - k Constant
+ */
 export function lp2bp_zpk(z: Complex[], p: Complex[], k: number, wo: number, bw: number): ZPK {
     z = asArray(z) as Complex[]
     p = asArray(p) as Complex[]
@@ -73,6 +107,18 @@ export function lp2bp_zpk(z: Complex[], p: Complex[], k: number, wo: number, bw:
     return { z: z_bp, p: p_bp, k: k_bs }
 }
 
+/**
+ * Convert a lowpass prototype to a bandstop with a different frequencies
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @param wo Angular Frequency of the band stop cutoff (rad/s)
+ * @param bw Angular Bandwidth of the band stop cutoff (rad/s)
+ * @return ZPK
+ *     - z Complex zeros
+ *     - p Complex poles
+ *     - k Constant
+ */
 export function lp2bs_zpk(z: Complex[], p: Complex[], k: number, wo: number, bw: number): ZPK {
     z = asArray(z) as Complex[]
     p = asArray(p) as Complex[]
@@ -110,6 +156,16 @@ export function lp2bs_zpk(z: Complex[], p: Complex[], k: number, wo: number, bw:
     return { z: z_bs, p: p_bs, k: k_bs }
 }
 
+/**
+ * Convert an analog filter to a digital filter using the bilinear transform
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @return ZPK
+ *     - z Complex zeros
+ *     - p Complex poles
+ *     - k Constant
+ */
 export function bilinear_zpk(z: Complex[], p: Complex[], k: number, fs: number): ZPK {
     z = asArray(z) as Complex[]
     p = asArray(p) as Complex[]
@@ -127,6 +183,15 @@ export function bilinear_zpk(z: Complex[], p: Complex[], k: number, fs: number):
     return { z: z_z, p: p_z, k: k_z }
 }
 
+/**
+ * Concert a ZPK filter representation to a BA filter representation
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @return BA
+ *      - b Polynomial coefficients numerator
+ *      - a Polynomial coefficients denominator
+ */
 export function zpk2tf(z: Complex[], p: Complex[], k: number): BA {
     z = asArray(z) as Complex[]
     p = asArray(p) as Complex[]
@@ -135,6 +200,13 @@ export function zpk2tf(z: Complex[], p: Complex[], k: number): BA {
     return { b, a }
 }
 
+/**
+ * Concert a ZPK filter representation to a SOS filter representation
+ * @param z Complex zeros
+ * @param p Complex poles
+ * @param k Constant
+ * @return Second order section filter representation
+ */
 export function zpk2sos(z: Complex[], p: Complex[], k: number): SOS {
     let valid_pairings = ['nearest', 'keep_odd', 'minimal']
     let analog = false    // default

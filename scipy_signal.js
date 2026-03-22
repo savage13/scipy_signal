@@ -75,13 +75,29 @@ function sum(values) {
 var Complex2 = class _Complex {
   re;
   im;
+  /**
+   * @constructor
+   * @param re - Real part
+   * @param im - Imaginary part
+   *
+   * @return - Complex number (re, im)
+   */
   constructor(re, im) {
     this.re = re;
     this.im = im;
   }
+  /**
+   * Copy a complex number
+   *
+   * @return {Complex} - Copy of Complex number (re, im)
+   */
   copy() {
     return new _Complex(this.re, this.im);
   }
+  /**
+   * Take exponential of complex number
+   * @return exp(this)
+   */
   exp() {
     const x = this.re;
     const y = this.im;
@@ -90,9 +106,17 @@ var Complex2 = class _Complex {
     let im = ex * Math.sin(y);
     return new _Complex(re, im);
   }
+  /**
+   * Take negative of complex number
+   * @return -1 * this
+   */
   neg() {
     return this.mul(new _Complex(-1, 0));
   }
+  /**
+   * Multiply two complex numbers
+   * @return a * b
+   */
   mul(z) {
     let a = this.re;
     let b = this.im;
@@ -100,15 +124,21 @@ var Complex2 = class _Complex {
     let d = z.im;
     return new _Complex(a * c - b * d, a * d + b * c);
   }
-  is_zero() {
-    return this.re == 0 && this.im == 0;
-  }
+  /**
+   * Compare two complex number within an absolute tolerance
+   * @param z
+   * @return true if ||this-z|| < 1e-13
+   */
   cmp(z) {
     let dx = Math.abs(this.re - z.re);
     let dy = Math.abs(this.im - z.im);
     return dx < 1e-13 && dy < 1e-13;
   }
   // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) csqrt()
+  /**
+   * Take square root of a complex number
+   * @return this^(1/2)
+   */
   sqrt() {
     let x = this.re;
     let y = this.im;
@@ -135,6 +165,11 @@ var Complex2 = class _Complex {
     return new _Complex(re, im);
   }
   // See numpy (https://github.com/numpy/numpy/blob/.../numpy/_core/src/npymath/npy_math_complex.c.src) cdiv()
+  /**
+   * Divide two complex numbers
+   * @param z complex denominator
+   * @return this / z
+   */
   div(z) {
     let ar = this.re;
     let ai = this.im;
@@ -168,6 +203,11 @@ var Complex2 = class _Complex {
     }
     return new _Complex(re, im);
   }
+  /**
+   * Add two complex numbers
+   * @param z complex number to add
+   * @return this + z
+   */
   add(z) {
     let x = this.re;
     let y = this.im;
@@ -175,6 +215,11 @@ var Complex2 = class _Complex {
     let v = z.im;
     return new _Complex(x + u, y + v);
   }
+  /**
+   * Subtract two complex numbers
+   * @param z complex number to subtract
+   * @return this - z
+   */
   sub(z) {
     let x = this.re;
     let y = this.im;
@@ -182,17 +227,40 @@ var Complex2 = class _Complex {
     let v = z.im;
     return new _Complex(x - u, y - v);
   }
+  /**
+   * Convert to a string
+   * @return "(re, im)"
+   */
   str() {
     return `(${this.re}, ${this.im})`;
   }
+  /**
+   * Take absolute value of a complex number
+   * @return ||this||
+   */
   abs() {
     return Math.sqrt(this.re * this.re + this.im * this.im);
   }
+  /**
+   * Take conjugate of a complex number
+   * @return (re, -im)
+   */
   conj() {
     return new _Complex(this.re, -this.im);
   }
+  /**
+   * Check is complex is real
+   * @return true if im == 0
+   */
   is_real() {
     return this.im == 0;
+  }
+  /**
+   * Check if complex is zero
+   * @return true if real and imag == 0
+   */
+  is_zero() {
+    return this.re == 0 && this.im == 0;
   }
 };
 function isNegativeZero(v) {
@@ -278,7 +346,7 @@ function cplxreal(z, tol = -1) {
     z = [z];
   }
   if (z.length == 0) {
-    return [z, z];
+    return [[], []];
   }
   if (tol < 0) {
     const eps = 1e-16;
@@ -842,91 +910,6 @@ var filter_dict = {
   // 'chebyshev2': [cheb2ap, cheb2ord],
   // 'chebyshevii': [cheb2ap, cheb2ord],
 };
-function is_number(n) {
-  return parseInt(n) == n;
-}
-function is_positive_number(n) {
-  return is_number(n) && n > 0;
-}
-function buttap(N) {
-  if (!is_positive_number(N)) {
-    throw new Error("Filter order must be a nonnegative integer");
-  }
-  let z = [];
-  let m = arange(-N + 1, N, 2);
-  let p = m.map((mi) => new Complex2(Math.PI * mi / (2 * N), 0)).map((mi) => mi.mul(new Complex2(0, 1))).map((mi) => mi.exp()).map((mi) => mi.neg());
-  let k = 1;
-  return { z, p, k };
-}
-function freqz_zpk(z, p, k, options = {}) {
-  const TAU = 2 * Math.PI;
-  z = asArray(z);
-  p = asArray(p);
-  let w = freqz_options(options);
-  let zm1 = w.map((v) => new Complex2(0, v).exp());
-  let h = [];
-  let k0 = new Complex2(k, 0);
-  for (const zm of zm1) {
-    let numer = zpolyval_from_roots(zm, z);
-    let denom = zpolyval_from_roots(zm, p);
-    h.push(numer.div(denom).mul(k0));
-  }
-  w = w.map((v) => v * options.fs / TAU);
-  return { w, h };
-}
-function freqz_options(options = {}) {
-  const TAU = 2 * Math.PI;
-  const default_options = {
-    worN: 512,
-    whole: false,
-    fs: TAU
-  };
-  options = Object.assign({}, default_options, options);
-  let lastpoint = options.whole ? TAU : Math.PI;
-  let w = [];
-  if (options.worN == -1) {
-    w = linspace(0, lastpoint, 512, { endpoint: false });
-  } else if (Number.isInteger(options.worN)) {
-    w = linspace(0, lastpoint, options.worN, { endpoint: false });
-  } else {
-    w = asArray(options.worN);
-    w = w.map((v) => TAU * v / options.fs);
-  }
-  return w;
-}
-function _freqz(b, a, zm1) {
-  let h = [];
-  for (const zm of zm1) {
-    let numer = polyval(b, zm);
-    let denom = polyval(a, zm);
-    h.push(numer.div(denom));
-  }
-  return h;
-}
-function freqz(b, a, options = {}) {
-  const TAU = 2 * Math.PI;
-  let w = freqz_options(options);
-  let zm1 = w.map((v) => new Complex2(0, v).exp());
-  let h = _freqz(b, a, zm1);
-  w = w.map((v) => v * options.fs / TAU);
-  return { w, h };
-}
-function freqz_sos(sos, options = {}) {
-  const TAU = 2 * Math.PI;
-  let n_sections = sos.length;
-  let w = freqz_options(options);
-  let zm1 = w.map((v) => new Complex2(0, v).exp());
-  let h = w.map((_) => new Complex2(1, 0));
-  for (let j = 0; j < n_sections; j++) {
-    let row = sos[j];
-    let b = row.slice(0, 3);
-    let a = row.slice(3);
-    let h0 = _freqz(b, a, zm1);
-    h = h.map((_, i) => h[i].mul(h0[i]));
-  }
-  w = w.map((v) => v * options.fs / TAU);
-  return { w, h };
-}
 function iirfilter(N, Wn, options) {
   let fs = 1;
   let warped = [];
@@ -1007,6 +990,91 @@ function iirfilter(N, Wn, options) {
     default:
       throw new Error("unknown output type");
   }
+}
+function is_integer(n) {
+  return parseInt(n) == n;
+}
+function is_positive_number(n) {
+  return is_integer(n) && n > 0;
+}
+function freqz(b, a, options = {}) {
+  const TAU = 2 * Math.PI;
+  let w = freqz_options(options);
+  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  let h = _freqz(b, a, zm1);
+  w = w.map((v) => v * options.fs / TAU);
+  return { w, h };
+}
+function freqz_zpk(z, p, k, options = {}) {
+  const TAU = 2 * Math.PI;
+  z = asArray(z);
+  p = asArray(p);
+  let w = freqz_options(options);
+  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  let h = [];
+  let k0 = new Complex2(k, 0);
+  for (const zm of zm1) {
+    let numer = zpolyval_from_roots(zm, z);
+    let denom = zpolyval_from_roots(zm, p);
+    h.push(numer.div(denom).mul(k0));
+  }
+  w = w.map((v) => v * options.fs / TAU);
+  return { w, h };
+}
+function freqz_options(options = {}) {
+  const TAU = 2 * Math.PI;
+  const default_options = {
+    worN: 512,
+    whole: false,
+    fs: TAU
+  };
+  options = Object.assign({}, default_options, options);
+  let lastpoint = options.whole ? TAU : Math.PI;
+  let w = [];
+  if (options.worN == -1) {
+    w = linspace(0, lastpoint, 512, { endpoint: false });
+  } else if (Number.isInteger(options.worN)) {
+    w = linspace(0, lastpoint, options.worN, { endpoint: false });
+  } else {
+    w = asArray(options.worN);
+    w = w.map((v) => TAU * v / options.fs);
+  }
+  return w;
+}
+function _freqz(b, a, zm1) {
+  let h = [];
+  for (const zm of zm1) {
+    let numer = polyval(b, zm);
+    let denom = polyval(a, zm);
+    h.push(numer.div(denom));
+  }
+  return h;
+}
+function freqz_sos(sos, options = {}) {
+  const TAU = 2 * Math.PI;
+  let n_sections = sos.length;
+  let w = freqz_options(options);
+  let zm1 = w.map((v) => new Complex2(0, v).exp());
+  let h = w.map((_) => new Complex2(1, 0));
+  for (let j = 0; j < n_sections; j++) {
+    let row = sos[j];
+    let b = row.slice(0, 3);
+    let a = row.slice(3);
+    let h0 = _freqz(b, a, zm1);
+    h = h.map((_, i) => h[i].mul(h0[i]));
+  }
+  w = w.map((v) => v * options.fs / TAU);
+  return { w, h };
+}
+function buttap(N) {
+  if (!is_positive_number(N)) {
+    throw new Error("Filter order must be a nonnegative integer");
+  }
+  let z = [];
+  let m = arange(-N + 1, N, 2);
+  let p = m.map((mi) => new Complex2(Math.PI * mi / (2 * N), 0)).map((mi) => mi.mul(new Complex2(0, 1))).map((mi) => mi.exp()).map((mi) => mi.neg());
+  let k = 1;
+  return { z, p, k };
 }
 function butter(N, Wn, options = {}) {
   options.ftype = "butter";

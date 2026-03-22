@@ -4,7 +4,7 @@
         "dev": "esbuild --outfile=scipy_signal.js src/scipy.ts --bundle --watch --sourcemap --tree-shaking=false --format=esm",
         "types": "tsc ./src/scipy.ts --declaration --lib 'es2023' --emitDeclarationOnly --outFile scipy_signal.js",
         "doc": "node ./jsdoc.ts ./src/scipy.ts > API.md",
-        "Test": "node --watch ./tests/tests.js "
+        "test": "node --watch ./tests/tests.js "
     },
     "dependencies": {
         "esbuild": "^0.27.3",

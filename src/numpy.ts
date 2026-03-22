@@ -1,6 +1,13 @@
 
 import { Complex } from './complex'
 
+/**
+ * Generate increasing or decreasing array
+ * @param v0 start
+ * @param v1 end
+ * @param dk point spacing
+ * @return generated array
+ */
 export function arange(v0: number, v1: number, dk: number): number[] {
     let out = []
     let v = v0
@@ -12,7 +19,11 @@ export function arange(v0: number, v1: number, dk: number): number[] {
     }
     return out
 }
-
+/**
+ * Generate an array of zeros
+ * @param n size of array
+ * @return array of zeros
+ */
 export function zeros(n: number): number[] {
     let v = Array(n)
     for (let i = 0; i < n; i++) {
@@ -20,6 +31,11 @@ export function zeros(n: number): number[] {
     }
     return v
 }
+/**
+ * Generate an array of ones
+ * @param n size of array
+ * @return array of ones
+ */
 export function ones(n: number): number[] {
     let v = Array(n)
     for (let i = 0; i < n; i++) {
@@ -28,7 +44,11 @@ export function ones(n: number): number[] {
     return v
 }
 
-
+/**
+ * Find index of minimum value in an array
+ * @param v array of values
+ * @return index of minimum value
+ */
 export function argmin(v: number[]): number {
     if (v.length == 0)
         throw new Error("emtpy array into argmin")
@@ -42,7 +62,15 @@ export function argmin(v: number[]): number {
     return k
 
 }
-
+/**
+ * Generate a linear sequence, array
+ * @param start initial value
+ * @param stop ending value
+ * @param n number of values
+ * @param options generation options
+ *     - endpoint - include stop value (default: true)
+ * @return generated sequence
+ */
 export function linspace(start: number, stop: number, n: number, options: any = {}): number[] {
     let default_options = {
         endpoint: true,
@@ -68,6 +96,11 @@ export function linspace(start: number, stop: number, n: number, options: any = 
     return y
 }
 
+/**
+ * Make sure a value is an array
+ * @param x input value
+ * @return output array
+ */
 export function asArray(x: number | number[] | Complex | Complex[]): (number | Complex)[] {
     if (Array.isArray(x)) {
         return x
@@ -75,6 +108,11 @@ export function asArray(x: number | number[] | Complex | Complex[]): (number | C
     return [x]
 }
 
+/**
+ * Calculate the sum of an array
+ * @param values input array
+ * @return summation of the input array
+ */
 export function sum(values: number[]): number {
     let total = 0
     for (const value of values) {
