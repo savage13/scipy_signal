@@ -81,9 +81,10 @@ class Type {
     toString() {
         let comment = this.comment
         if (comment.length) {
-            comment += "\n"
+            comment += "\n\n"
         }
-        return `${comment}'${this.code}'\n\n`
+        let code = "```\n" + this.code + "\n```"
+        return `## ${this.name}\n\n${comment}${code}\n\n`
     }
 }
 

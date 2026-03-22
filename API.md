@@ -87,24 +87,39 @@
    Returns
    - ZPK | BA | SOS - Filter description in ZPK, BA or SOS format
 
+## ZPK
+
 Zeros, Poles, Constant Filter
-'export type ZPK = {
+
+```
+export type ZPK = {
     z: Complex[];
     p: Complex[];
     k: number;
-}'
+}
+```
+
+## BA
 
 Polynomial Filter
-'export type BA = {
+
+```
+export type BA = {
     b: number[];
     a: number[];
-}'
+}
+```
+
+## SOS
 
 Second order Section
   stored as 3 coefficients of polynomial numerator,
   then 3 coefficient of polynomial denominator
   for 6 terms total
-'export type SOS = number[][];'
+
+```
+export type SOS = number[][];
+```
 
 ## freqz
 
@@ -708,24 +723,39 @@ https://github.com/scipy/scipy/blob/v1.17.0/scipy/signal/_filter_design.py#L983
    Returns
    - ZPK | BA | SOS - Filter description in ZPK, BA or SOS format
 
+## ZPK
+
 Zeros, Poles, Constant Filter
-'export type ZPK = {
+
+```
+export type ZPK = {
     z: Complex[];
     p: Complex[];
     k: number;
-}'
+}
+```
+
+## BA
 
 Polynomial Filter
-'export type BA = {
+
+```
+export type BA = {
     b: number[];
     a: number[];
-}'
+}
+```
+
+## SOS
 
 Second order Section
   stored as 3 coefficients of polynomial numerator,
   then 3 coefficient of polynomial denominator
   for 6 terms total
-'export type SOS = number[][];'
+
+```
+export type SOS = number[][];
+```
 
 ## freqz
 
