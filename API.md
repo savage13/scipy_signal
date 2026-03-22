@@ -1,4 +1,4 @@
-Contents
+## API scipy_signal
 
 - [iirfilter](#iirfilter) - Construct a IIR filter
 - [freqz](#freqz) - Compute response of a filter in the frequency domain

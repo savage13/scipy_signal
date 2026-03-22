@@ -273,7 +273,7 @@ for (const item of out) {
         }
     }
 }
-console.log("Contents\n")
+console.log("## API scipy_signal\n")
 console.log(toc.join("\n"))
 console.log("\n\n")
 console.log(out.map(v => v.toString()).join(""))
